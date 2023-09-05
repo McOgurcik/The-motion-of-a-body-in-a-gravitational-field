@@ -109,6 +109,7 @@ layout = [
     [sg.Text(text="v0"),
      sg.Slider(range=(0, 100), default_value=v0, size=(10, 20), expand_x=True, enable_events=True, orientation='h', key='v')],
      [sg.Checkbox('Препятствие', default=False,enable_events=True, k='-P-')],
+# здесь нужен радио определяющий определённое сопротивление воздуха (для F=0 программа фактически уже сделана)
     [sg.Push(), sg.Button('Exit'), sg.Push()],
 ]
 window = sg.Window('Движение тела в поле тяжести', layout, finalize=True, resizable=True)
@@ -169,6 +170,7 @@ while True:
         # print(values)
         xr = values[event]
         plot_figure(a,v0,y0,x0,pr)
+	#если выбрано диф сопрт воздуха, то вызвать отдельную функцию
 # 8. Close window to exit
 
 window.close()
