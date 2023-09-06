@@ -60,7 +60,7 @@ def plot_figure_wing(a, v0, y0, x0, pr, m, k):
     t = np.linspace(0, t0, 1000)
     l = v0 * math.cos(math.radians(a))*m/k*(1-(math.exp(-k*t0/m)))
     x = v0 * np.cos(math.radians(a))*m/k*(1-(np.exp(-k*t/m)))
-    y = (v0*np.sin(math.radians(a))+m*g/k)*(1-(np.exp(-k*t/m)))-g*t
+    y = (m/k)*((v0*np.sin(math.radians(a))+m*g/k)*(1-(np.exp(-k*t/m)))-g*t)
     plt.figure(figsize=(cm_to_inch(h), cm_to_inch(w)))
     ax.set_xlim(0, x0)
     ax.set_ylim(0, y0)
