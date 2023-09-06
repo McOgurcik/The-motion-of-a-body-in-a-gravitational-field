@@ -4,7 +4,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.patches import Rectangle
 import PySimpleGUI as sg
-import math as m
+import math
 import matplotlib as mt
 
 mt.use('agg')
@@ -18,7 +18,9 @@ pr = False
 xr = 24
 yr = 0
 z = 1
-
+m = 10
+k = 1
+MODE = 1
 
 class Canvas(FigureCanvasTkAgg):
   """
@@ -38,30 +40,53 @@ def cm_to_inch(value):
 def p(t, v0, a, xr, yr, h, w):
   g = 9.80665
   for i in t:
-    if (v0 * np.cos(m.radians(a)) * i) >= xr and (v0 * np.cos(m.radians(a)) *
+    if (v0 * np.cos(math.radians(a)) * i) >= xr and (v0 * np.cos(math.radians(a)) *
                                                   i) <= (xr + w):
-      if not (((v0 * np.sin(m.radians(a)) * i - g * (i**2) / 2) >=
-               (yr + h)) and ((v0 * np.sin(m.radians(a)) * i - g *
+      if not (((v0 * np.sin(math.radians(a)) * i - g * (i**2) / 2) >=
+               (yr + h)) and ((v0 * np.sin(math.radians(a)) * i - g *
                                (i**2) / 2) <= (yr + h + z))):
         return False
   return True
 
-def plot_figure_wing()
+def plot_figure_wing(a, v0, y0, x0, pr, m, k):
+    g = 9.80665
+    t0 = 0.01
+    ax.cla()
+    while True:
+            yt = (v0*math.sin(math.radians(a))+m*g/k)*(1-(math.exp(-k*t0/m)))-g*t0
+            if yt <= 0:
+                break
+            t0 = t0 + 0.01
+    t = np.linspace(0, t0, 1000)
+    l = v0 * math.cos(math.radians(a))*m/k*(1-(math.exp(-k*t0/m)))
+    x = v0 * np.cos(math.radians(a))*m/k*(1-(np.exp(-k*t/m)))
+    y = (v0*np.sin(math.radians(a))+m*g/k)*(1-(np.exp(-k*t/m)))-g*t
+    plt.figure(figsize=(cm_to_inch(h), cm_to_inch(w)))
+    ax.set_xlim(0, x0)
+    ax.set_ylim(0, y0)
+    ax.set_title(f'v_0 = {v0}, α = {a}', fontsize=32)
+    if l == np.max(x):
+      ax.set_xlabel(f'L = {l} - Максимальная дальность полёта')
+    else:
+      ax.set_xlabel(f'L = {l}')
+    ax.set_ylabel(f'H = {np.max(y)} - Максимальная высота')
+    ax.plot(x, y, color='g')
+    canvas.draw()
 def plot_figure(a, v0, y0, x0, pr):
   g = 9.80665
   ax.cla()
-  l = v0**2 * m.sin(2 * m.radians(a)) / g
+  l = v0**2 * math.sin(2 * math.radians(a)) / g
   # time to max height
-  tp = 2 * v0 * np.sin(m.radians(a)) / g
+  tp = 2 * v0 * np.sin(math.radians(a)) / g
 
   # converting to time range
   t = np.linspace(0, tp, 1000)
 
   # x axis
-  x = v0 * np.cos(m.radians(a)) * t
+  x = v0 * np.cos(math.radians(a)) * t
 
   # y axis
-  y = v0 * np.sin(m.radians(a)) * t - g * (t**2) / 2
+  y = v0 * np.sin(math.radians(a)) * t - g * (t**2) / 2
   plt.figure(figsize=(cm_to_inch(h), cm_to_inch(w)))
   ax.set_xlim(0, x0)
   ax.set_ylim(0, y0)
@@ -106,10 +131,16 @@ def plot_figure(a, v0, y0, x0, pr):
 
 # 4. create PySimpleGUI window
 sg.theme('DefaultNoMoreNagging')
+krange = []
+for i in range(0,100):
+    krange.append(i/10)
 
 layout = [
     [sg.Canvas(size=(640, 480), key='Canvas')],
     [
+        sg.Radio('F_c = 0',"RD1", default = True, enable_events = True, k='-FCZ-'),
+        sg.Radio('F_c = -kv', "RD1", enable_events = True, k='-FCK-'),
+        sg.Radio('F_c = -k |v| v', "RD1", enable_events = True, k='-FCC-'),
         sg.Text(text="xm"),
         sg.Spin([i for i in range(1, 100)],
                 initial_value=50,
@@ -120,28 +151,18 @@ layout = [
                 initial_value=50,
                 enable_events=True,
                 k='-Y-'),
-        sg.Text(text="h"),
-        sg.Spin([i for i in range(1, 70)],
-                initial_value=12,
-                enable_events=True,
-                k='-H-'),
-        sg.Text(text="w"),
-        sg.Spin([i for i in range(1, 30)],
-                initial_value=2,
-                enable_events=True,
-                k='-W-'),
-        sg.Text(text="z"),
-        sg.Spin([i for i in range(1, 30)],
-                initial_value=2,
-                enable_events=True,
-                k='-Z-'),
-        sg.Text(text="xr"),
+        sg.Text(text="m",k='-MT-',visible=False),
         sg.Spin([i for i in range(1, 100)],
-                initial_value=24,
+                visible=False,
+                initial_value=10,
                 enable_events=True,
-                k='-XR-'),
-      sg.Radio('F_c = 0', 1),
-      sg.Radio('F_c = -kv', 1),
+                k='-M-'),
+        sg.Text(text="k",k='-KT-',visible=False),
+        sg.Spin(krange,
+                visible=False,
+                initial_value=0.1,
+                enable_events=True,
+                k='-K-'),
     ],
     [
         sg.Text(text="α"),
@@ -163,12 +184,36 @@ layout = [
                   orientation='h',
                   key='v')
     ],
-    [sg.Checkbox('Препятствие', default=False, enable_events=True, k='-P-')],
-    
-    # здесь нужен радио определяющий определённое сопротивление воздуха (для F=0 программа фактически уже сделана) 
+    [sg.Checkbox('Препятствие', default=False, enable_events=True, k='-P-'),
+    sg.Text(text="h",enable_events=True,k='-HT-'),
+    sg.Spin([i for i in range(1, 70)],
+            initial_value=12,
+            enable_events=True,
+            k='-H-'),
+    sg.Text(text="w",k='-WT-'),
+    sg.Spin([i for i in range(1, 30)],
+            initial_value=2,
+            enable_events=True,
+            k='-W-'),
+    sg.Text(text="z",k='-ZT-'),
+    sg.Spin([i for i in range(1, 30)],
+            initial_value=2,
+            enable_events=True,
+            k='-Z-'),
+    sg.Text(text="xr",k='-XRT-'),
+    sg.Spin([i for i in range(1, 100)],
+            initial_value=24,
+            enable_events=True,
+            k='-XR-')
+    ],
+
+    # здесь нужен радио определяющий определённое сопротивление воздуха (для F=0 программа фактически уже сделана)
   #При выбранном радио с сопротивлением воздуха  вызвать другую функцию вывода и использовать другой список элементов интерфейса (чтобы убрать лишние)
     [sg.Push(), sg.Button('Exit'), sg.Push()],
 ]
+# def win_call(title,lt,finalize, resizable):
+#     return sg.Window(title,lt,finalize,resizable)
+# window = win_call('Движение тела в поле тяжести',layout,True,True)
 window = sg.Window('Движение тела в поле тяжести',
                    layout,
                    finalize=True,
@@ -179,50 +224,100 @@ fig = Figure(figsize=(cm_to_inch(15), cm_to_inch(10)))
 ax = fig.add_subplot()
 canvas = Canvas(fig, window['Canvas'].Widget)
 
-plot_figure(a, v0, y0, x0, pr)
+# plot_figure(a, v0, y0, x0, pr)
 
+def mode_conf():
+    if MODE == 1:
+        window["-P-"].update(visible=True)
+    if pr:
+        window["-HT-"].update(visible=True)
+        window["-H-"].update(visible=True)
+        window["-WT-"].update(visible=True)
+        window["-W-"].update(visible=True)
+        window["-ZT-"].update(visible=True)
+        window["-Z-"].update(visible=True)
+        window["-XRT-"].update(visible=True)
+        window["-XR-"].update(visible=True)
+    else:
+        window["-H-"].update(visible=False)
+        window["-HT-"].update(visible=False)
+        window["-W-"].update(visible=False)
+        window["-WT-"].update(visible=False)
+        window["-Z-"].update(visible=False)
+        window["-ZT-"].update(visible=False)
+        window["-XR-"].update(visible=False)
+        window["-XRT-"].update(visible=False)
+    if MODE == 1:
+        # window["-P-"].update(visible=True)
+        window["-MT-"].update(visible=False)
+        window["-M-"].update(visible=False)
+        window["-KT-"].update(visible=False)
+        window["-K-"].update(visible=False)
+        return plot_figure(a, v0, y0, x0, pr)
+    elif MODE == 2:
+        window["-P-"].update(visible=False)
+        window["-MT-"].update(visible=True)
+        window["-M-"].update(visible=True)
+        window["-KT-"].update(visible=True)
+        window["-K-"].update(visible=True)
+        # print('MODE 2')
+        return plot_figure_wing(a, v0, y0, x0, pr, m, k)
+mode_conf()
 while True:
 
   event, values = window.read()
-
+  # print(event)
   if event in (sg.WIN_CLOSED, 'Exit'):
     break
+  elif event == '-FCZ-':
+      MODE = 1
+      mode_conf()
+  elif event == '-FCK-':
+      MODE = 2
+      mode_conf()
   elif event == 'Slider':
-    # print(values)
     a = values[event]
-    plot_figure(a, v0, y0, x0, pr)
+    mode_conf()
   elif event == 'v':
     # print(values)
     v0 = values[event]
-    plot_figure(a, v0, y0, x0, pr)
+    mode_conf()
   elif event == '-Y-':
     # print(values)
     y0 = values[event]
-    plot_figure(a, v0, y0, x0, pr)
+    mode_conf()
   elif event == '-X-':
     # print(values)
     x0 = values[event]
-    plot_figure(a, v0, y0, x0, pr)
+    mode_conf()
   elif event == '-P-':
     # print(values)
     pr = values[event]
-    plot_figure(a, v0, y0, x0, pr)
+    mode_conf()
   elif event == '-H-':
     # print(values)
     h = values[event]
-    plot_figure(a, v0, y0, x0, pr)
+    mode_conf()
   elif event == '-W-':
     # print(values)
     w = values[event]
-    plot_figure(a, v0, y0, x0, pr)
+    mode_conf()
   elif event == '-Z-':
     # print(values)
     z = values[event]
-    plot_figure(a, v0, y0, x0, pr)
+    mode_conf()
   elif event == '-XR-':
     # print(values)
     xr = values[event]
-    plot_figure(a, v0, y0, x0, pr)
+    mode_conf()
+  elif event == '-K-':
+     # print(values)
+     k = values[event]
+     mode_conf()
+  elif event == '-M-':
+     # print(values)
+     m = values[event]
+     mode_conf()
 #если выбрано диф сопрт воздуха, то вызвать отдельную функцию
 # 8. Close window to exit
 
