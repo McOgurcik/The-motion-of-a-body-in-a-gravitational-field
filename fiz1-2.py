@@ -20,6 +20,7 @@ yr = 0
 z = 1
 m = 10
 k = 1
+dt = 0.01
 MODE = 1
 
 class Canvas(FigureCanvasTkAgg):
@@ -47,11 +48,36 @@ def p(t, v0, a, xr, yr, h, w):
                                (i**2) / 2) <= (yr + h + z))):
         return False
   return True
-
-def plot_figure_wing(a, v0, y0, x0, pr, m, k):
+def plot_figure_hard_wing(a, v0, y0, x0, m, k, dt):
+    g = 9.80665
+    ax.cla()
+    vx = [v0*math.cos(math.radians(a))]
+    vy = [v0*math.sin(math.radians(a))]
+    x = [0]
+    y = [0]
+    i = 0
+    while True:
+        vx.append(vx[i] - ( k/m*((vx[i]*vx[i]+vy[i]*vy[i])**0.5) *vx[i]*dt) )
+        vy.append(vy[i] - (g + k/m*((vx[i]*vx[i]+vy[i]*vy[i])**0.5) *vy[i])*dt )
+        x.append(x[i]+vx[i]*dt)
+        y.append(y[i]+vy[i]*dt)
+        if y[i+1] <= 0:
+            break
+        i = i + 1
+    plt.figure(figsize=(cm_to_inch(h), cm_to_inch(w)))
+    ax.set_xlim(0, x0)
+    ax.set_ylim(0, y0)
+    ax.set_title(r'${V}_0$'+f' = {v0}, α = {a}', fontsize=32)
+    ax.set_xlabel(f'H = {np.max(x)} - Максимальная дальность полёта')
+    ax.set_ylabel(f'H = {np.max(y)} - Максимальная высота')
+    ax.plot(x, y, color='g')
+    canvas.draw()
+def plot_figure_wing(a, v0, y0, x0, m, k):
     g = 9.80665
     t0 = 0.01
     ax.cla()
+    if k == 0:
+        k = 0.00001
     while True:
             yt = (v0*math.sin(math.radians(a))+m*g/k)*(1-(math.exp(-k*t0/m)))-g*t0
             if yt <= 0:
@@ -64,7 +90,7 @@ def plot_figure_wing(a, v0, y0, x0, pr, m, k):
     plt.figure(figsize=(cm_to_inch(h), cm_to_inch(w)))
     ax.set_xlim(0, x0)
     ax.set_ylim(0, y0)
-    ax.set_title(f'v_0 = {v0}, α = {a}', fontsize=32)
+    ax.set_title(r'${V}_0$'+f' = {v0}, α = {a}', fontsize=32)
     if l == np.max(x):
       ax.set_xlabel(f'L = {l} - Максимальная дальность полёта')
     else:
@@ -90,7 +116,7 @@ def plot_figure(a, v0, y0, x0, pr):
   plt.figure(figsize=(cm_to_inch(h), cm_to_inch(w)))
   ax.set_xlim(0, x0)
   ax.set_ylim(0, y0)
-  ax.set_title(f'v_0 = {v0}, α = {a}', fontsize=32)
+  ax.set_title(r'${V}_0$'+f' = {v0}, α = {a}', fontsize=32)
   if a == 45:
     ax.set_xlabel(f'L = {l} - Максимальная дальность полёта')
   else:
@@ -132,9 +158,11 @@ def plot_figure(a, v0, y0, x0, pr):
 # 4. create PySimpleGUI window
 sg.theme('DefaultNoMoreNagging')
 krange = []
-for i in range(0,100):
+for i in range(0,1000):
     krange.append(i/10)
-
+trange = []
+for i in range(1,1000000):
+    trange.append(i/1000)
 layout = [
     [sg.Canvas(size=(640, 480), key='Canvas')],
     [
@@ -151,18 +179,24 @@ layout = [
                 initial_value=50,
                 enable_events=True,
                 k='-Y-'),
-        sg.Text(text="m",k='-MT-',visible=False),
-        sg.Spin([i for i in range(1, 100)],
-                visible=False,
+        sg.pin(sg.Text(text="m",k='-MT-',visible=False)),
+        sg.pin(sg.Spin([i for i in range(1, 100)],
+                visible=True,
                 initial_value=10,
                 enable_events=True,
-                k='-M-'),
-        sg.Text(text="k",k='-KT-',visible=False),
-        sg.Spin(krange,
-                visible=False,
-                initial_value=0.1,
+                k='-M-')),
+        sg.pin(sg.Text(text="k",k='-KT-',visible=False)),
+        sg.pin(sg.Spin(krange,
+                visible=True,
+                initial_value=krange[10],
                 enable_events=True,
-                k='-K-'),
+                k='-K-')),
+        sg.pin(sg.Text(text="∆t",k='-DT-',visible=False)),
+        sg.pin(sg.Spin(trange,
+                visible=True,
+                initial_value=0.01,
+                enable_events=True,
+                k='-D-')),
     ],
     [
         sg.Text(text="α"),
@@ -219,7 +253,7 @@ window = sg.Window('Движение тела в поле тяжести',
                    finalize=True,
                    resizable=True)
 
-fig = Figure(figsize=(cm_to_inch(15), cm_to_inch(10)))
+fig = Figure(figsize=(cm_to_inch(16), cm_to_inch(10)))
 
 ax = fig.add_subplot()
 canvas = Canvas(fig, window['Canvas'].Widget)
@@ -253,6 +287,8 @@ def mode_conf():
         window["-M-"].update(visible=False)
         window["-KT-"].update(visible=False)
         window["-K-"].update(visible=False)
+        window["-DT-"].update(visible=False)
+        window["-D-"].update(visible=False)
         return plot_figure(a, v0, y0, x0, pr)
     elif MODE == 2:
         window["-P-"].update(visible=False)
@@ -260,8 +296,19 @@ def mode_conf():
         window["-M-"].update(visible=True)
         window["-KT-"].update(visible=True)
         window["-K-"].update(visible=True)
+        window["-DT-"].update(visible=False)
+        window["-D-"].update(visible=False)
         # print('MODE 2')
-        return plot_figure_wing(a, v0, y0, x0, pr, m, k)
+        return plot_figure_wing(a, v0, y0, x0, m, k)
+    elif MODE == 3:
+        window["-P-"].update(visible=False)
+        window["-MT-"].update(visible=True)
+        window["-M-"].update(visible=True)
+        window["-KT-"].update(visible=True)
+        window["-K-"].update(visible=True)
+        window["-DT-"].update(visible=True)
+        window["-D-"].update(visible=True)
+        return plot_figure_hard_wing(a, v0, y0, x0, m, k, dt)
 mode_conf()
 while True:
 
@@ -274,6 +321,9 @@ while True:
       mode_conf()
   elif event == '-FCK-':
       MODE = 2
+      mode_conf()
+  elif event == '-FCC-':
+      MODE = 3
       mode_conf()
   elif event == 'Slider':
     a = values[event]
@@ -318,6 +368,11 @@ while True:
      # print(values)
      m = values[event]
      mode_conf()
+  elif event == '-DT-':
+     # print(values)
+     dt = values[event]
+     mode_conf()
+
 #если выбрано диф сопрт воздуха, то вызвать отдельную функцию
 # 8. Close window to exit
 
